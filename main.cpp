@@ -86,6 +86,9 @@ struct Tokenizer
       case RPAREN:
       case INTEGER:
         return 7;
+      default:
+        // Nothing to see here.
+        ;
       }
 
       return uint32_t(-1);
@@ -265,6 +268,9 @@ int32_t apply(Tokenizer::Token::Type type, int32_t left, int32_t right)
     return left % right;
   case Tokenizer::Token::POWER:
     return std::pow(left, right);
+  default:
+    // Hello there!
+    ;
   }
 
   assert(false);
