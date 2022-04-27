@@ -141,7 +141,7 @@ private:
 
     const char *const begin = at;
 
-    at++;
+    at += (*at != '\0');
 
     switch (begin[0])
     {
