@@ -342,6 +342,8 @@ int32_t parse_level_loop(int32_t level, Tokenizer &tokenizer)
       left = apply(token.type, left, parse_level(upper + 1, tokenizer));
       token = tokenizer.next_token();
     }
+
+    upper = std::min(token.precedence() + 1, upper);
   }
 
   tokenizer.putback_token(token);
