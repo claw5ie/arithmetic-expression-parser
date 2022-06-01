@@ -3,115 +3,95 @@
 #include <cassert>
 #include <cmath>
 
-/*
-  Scratch pad...
+struct Token
+{
+  enum Type
+  {
+    OR,
+    AND,
+    EQUAL,
+    DIFFERENT,
+    LESS,
+    LESS_EQUAL,
+    GREATER,
+    GREATER_EQUAL,
+    PLUS,
+    MINUS,
+    MULT,
+    DIVIDE,
+    MOD,
+    POWER,
+    NEGATION,
+    LPAREN,
+    RPAREN,
+    INTEGER,
 
-  Level0 : Level1 ... (+/- Level1)*
-         | Level1
+    UNKNOWN_TOKEN,
+    END_OF_FILE
+  };
 
-  AddOrDiff : + Level1 AddOrDiff
-            | - Level1 AddOrDiff
-            | eps
+  Type type;
+  const char *begin;
+  size_t size;
 
-  Level1 : Level1 * Level2
-         | Level1 / Level2
-         | Level2
+  uint32_t prec_level() const
+  {
+    switch (type)
+    {
+    case OR:
+      return 0;
+    case AND:
+      return 1;
+    case EQUAL:
+    case DIFFERENT:
+      return 2;
+    case LESS:
+    case LESS_EQUAL:
+    case GREATER:
+    case GREATER_EQUAL:
+      return 3;
+    case PLUS:
+    case MINUS:
+      return 4;
+    case MULT:
+    case DIVIDE:
+    case MOD:
+      return 5;
+    case POWER:
+      return 6;
+    case NEGATION:
+    case LPAREN:
+    case RPAREN:
+    case INTEGER:
+      return 7;
+    default:
+      // Nothing to see here.
+      ;
+    }
 
-  Level2 : Number
-         | (Level0)
-         | -Level2
+    return uint32_t(-1);
+  }
 
-*/
+  bool is_right_assoc() const
+  {
+    return type == POWER;
+  }
+
+  int32_t to_integer() const
+  {
+    assert(type == INTEGER);
+
+    int32_t value = 0;
+
+    for (size_t i = 0; i < size; i++)
+      value = value * 10 + (begin[i] - '0');
+
+    return value;
+  }
+};
 
 struct Tokenizer
 {
-  struct Token
-  {
-    enum Type
-    {
-      OR,
-      AND,
-      EQUAL,
-      DIFFERENT,
-      LESS,
-      LESS_EQUAL,
-      GREATER,
-      GREATER_EQUAL,
-      PLUS,
-      MINUS,
-      MULT,
-      DIVIDE,
-      MOD,
-      POWER,
-      NEGATION,
-      LPAREN,
-      RPAREN,
-      INTEGER,
-
-      UNKNOWN_TOKEN,
-      END_OF_FILE
-    };
-
-    Type type;
-    const char *begin;
-    size_t size;
-
-    uint32_t prec_level() const
-    {
-      switch (type)
-      {
-      case OR:
-        return 0;
-      case AND:
-        return 1;
-      case EQUAL:
-      case DIFFERENT:
-        return 2;
-      case LESS:
-      case LESS_EQUAL:
-      case GREATER:
-      case GREATER_EQUAL:
-        return 3;
-      case PLUS:
-      case MINUS:
-        return 4;
-      case MULT:
-      case DIVIDE:
-      case MOD:
-        return 5;
-      case POWER:
-        return 6;
-      case NEGATION:
-      case LPAREN:
-      case RPAREN:
-      case INTEGER:
-        return 7;
-      default:
-        // Nothing to see here.
-        ;
-      }
-
-      return uint32_t(-1);
-    }
-
-    bool is_right_assoc() const
-    {
-      return type == POWER;
-    }
-
-    int32_t to_integer() const
-    {
-      assert(type == INTEGER);
-
-      int32_t value = 0;
-
-      for (size_t i = 0; i < size; i++)
-        value = value * 10 + (begin[i] - '0');
-
-      return value;
-    }
-  };
-
   const char *at;
   Token buffer[4];
   uint32_t count;
@@ -236,37 +216,37 @@ private:
   }
 };
 
-int32_t apply(Tokenizer::Token::Type type, int32_t left, int32_t right)
+int32_t apply(Token::Type type, int32_t left, int32_t right)
 {
   switch (type)
   {
-  case Tokenizer::Token::OR:
+  case Token::OR:
     return left || right;
-  case Tokenizer::Token::AND:
+  case Token::AND:
     return left && right;
-  case Tokenizer::Token::EQUAL:
+  case Token::EQUAL:
     return left == right;
-  case Tokenizer::Token::DIFFERENT:
+  case Token::DIFFERENT:
     return left != right;
-  case Tokenizer::Token::LESS:
+  case Token::LESS:
     return left < right;
-  case Tokenizer::Token::LESS_EQUAL:
+  case Token::LESS_EQUAL:
     return left <= right;
-  case Tokenizer::Token::GREATER:
+  case Token::GREATER:
     return left > right;
-  case Tokenizer::Token::GREATER_EQUAL:
+  case Token::GREATER_EQUAL:
     return left >= right;
-  case Tokenizer::Token::PLUS:
+  case Token::PLUS:
     return left + right;
-  case Tokenizer::Token::MINUS:
+  case Token::MINUS:
     return left - right;
-  case Tokenizer::Token::MULT:
+  case Token::MULT:
     return left * right;
-  case Tokenizer::Token::DIVIDE:
+  case Token::DIVIDE:
     return left / right;
-  case Tokenizer::Token::MOD:
+  case Token::MOD:
     return left % right;
-  case Tokenizer::Token::POWER:
+  case Token::POWER:
     return std::pow(left, right);
   default:
     // Hello there!
@@ -283,7 +263,7 @@ int32_t parse_level(uint32_t level, Tokenizer &tokenizer)
   if (level < 7)
   {
     int32_t left = parse_level(level + 1, tokenizer);
-    Tokenizer::Token token = tokenizer.next_token();
+    Token token = tokenizer.next_token();
 
     if (token.prec_level() == level && token.is_right_assoc())
       return apply(token.type, left, parse_level(level, tokenizer));
@@ -300,24 +280,24 @@ int32_t parse_level(uint32_t level, Tokenizer &tokenizer)
   }
   else
   {
-    Tokenizer::Token token = tokenizer.next_token();
+    Token token = tokenizer.next_token();
 
     switch (token.type)
     {
-    case Tokenizer::Token::LPAREN:
+    case Token::LPAREN:
     {
       int32_t left = parse_level(0, tokenizer);
 
       token = tokenizer.next_token();
-      assert(token.type == Tokenizer::Token::RPAREN);
+      assert(token.type == Token::RPAREN);
 
       return left;
     }
-    case Tokenizer::Token::MINUS:
+    case Token::MINUS:
       return -parse_level(level, tokenizer);
-    case Tokenizer::Token::NEGATION:
+    case Token::NEGATION:
       return !parse_level(level, tokenizer);
-    case Tokenizer::Token::INTEGER:
+    case Token::INTEGER:
       return token.to_integer();
     default:
       assert(false);
@@ -331,9 +311,9 @@ int32_t parse_expr(const char *expr)
 
   int32_t res = parse_level(0, tokenizer);
 
-  Tokenizer::Token token = tokenizer.next_token();
+  Token token = tokenizer.next_token();
 
-  assert(token.type == Tokenizer::Token::END_OF_FILE);
+  assert(token.type == Token::END_OF_FILE);
 
   return res;
 }
