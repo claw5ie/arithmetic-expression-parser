@@ -34,7 +34,7 @@ struct Token
   const char *begin;
   size_t size;
 
-  uint32_t prec_level() const
+  int32_t precedence() const
   {
     switch (type)
     {
@@ -63,7 +63,7 @@ struct Token
       ;
     }
 
-    return uint32_t(-1);
+    return -255;
   }
 
   bool is_right_assoc() const
@@ -252,17 +252,17 @@ int32_t apply(Token::Type type, int32_t left, int32_t right)
   return -1;
 }
 
-int32_t parse_level(uint32_t level, Tokenizer &tokenizer)
+int32_t parse_level(int32_t level, Tokenizer &tokenizer)
 {
   if (level < 7)
   {
     int32_t left = parse_level(level + 1, tokenizer);
     Token token = tokenizer.next_token();
 
-    if (token.prec_level() == level && token.is_right_assoc())
+    if (token.precedence() == level && token.is_right_assoc())
       return apply(token.type, left, parse_level(level, tokenizer));
 
-    while (token.prec_level() == level)
+    while (token.precedence() == level)
     {
       left = apply(token.type, left, parse_level(level + 1, tokenizer));
       token = tokenizer.next_token();
@@ -288,9 +288,9 @@ int32_t parse_level(uint32_t level, Tokenizer &tokenizer)
       return left;
     }
     case Token::MINUS:
-      return -parse_level(level, tokenizer);
+      return -parse_level(255, tokenizer);
     case Token::NEGATION:
-      return !parse_level(level, tokenizer);
+      return !parse_level(255, tokenizer);
     case Token::INTEGER:
       return token.to_integer();
     default:
@@ -299,7 +299,7 @@ int32_t parse_level(uint32_t level, Tokenizer &tokenizer)
   }
 }
 
-// "prec_level" should return the smallest number when token is not operator.
+// "precedence" should return the smallest number when token is not operator.
 int32_t parse_level_loop(int32_t level, Tokenizer &tokenizer)
 {
   int32_t left;
@@ -329,15 +329,15 @@ int32_t parse_level_loop(int32_t level, Tokenizer &tokenizer)
 
   token = tokenizer.next_token();
 
-  for (int32_t upper = token.prec_level(); upper >= level; upper--)
+  for (int32_t upper = token.precedence(); upper >= level; upper--)
   {
-    if (token.prec_level() == upper && token.is_right_assoc())
+    if (token.precedence() == upper && token.is_right_assoc())
     {
       left = apply(token.type, left, parse_level(upper, tokenizer));
       token = tokenizer.next_token();
     }
 
-    while (token.prec_level() == upper)
+    while (token.precedence() == upper)
     {
       left = apply(token.type, left, parse_level(upper + 1, tokenizer));
       token = tokenizer.next_token();
@@ -349,22 +349,48 @@ int32_t parse_level_loop(int32_t level, Tokenizer &tokenizer)
   return left;
 }
 
-int32_t parse_expr(const char *expr)
+void parse_expr(const char *expr)
 {
-  Tokenizer tokenizer = { expr, { }, 0 };
+  Tokenizer tokenizer;
 
-  int32_t res = parse_level(0, tokenizer);
+  {
+    tokenizer = { expr, { }, 0 };
 
-  Token token = tokenizer.next_token();
+    std::cout << "rec: "
+              << parse_level(0, tokenizer)
+              << '\n';
 
-  assert(token.type == Token::END_OF_FILE);
+    Token token = tokenizer.next_token();
 
-  return res;
+    if (token.type != Token::END_OF_FILE)
+    {
+      std::cout << "rec: failed to parse expression at `"
+                << token.begin
+                << "`.\n";
+    }
+  }
+
+  {
+    tokenizer = { expr, { }, 0 };
+
+    std::cout << "it:  "
+              << parse_level_loop(0, tokenizer)
+              << '\n';
+
+    Token token = tokenizer.next_token();
+
+    if (token.type != Token::END_OF_FILE)
+    {
+      std::cout << "it:  failed to parse expression at `"
+                << token.begin
+                << "`.\n";
+    }
+  }
 }
 
 int main(int argc, char **argv)
 {
   assert(argc == 2);
 
-  std::cout << parse_expr(argv[1]) << '\n';
+  parse_expr(argv[1]);
 }
