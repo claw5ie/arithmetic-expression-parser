@@ -299,6 +299,56 @@ int32_t parse_level(uint32_t level, Tokenizer &tokenizer)
   }
 }
 
+// "prec_level" should return the smallest number when token is not operator.
+int32_t parse_level_loop(int32_t level, Tokenizer &tokenizer)
+{
+  int32_t left;
+  Token token = tokenizer.next_token();
+
+  switch (token.type)
+  {
+  case Token::LPAREN:
+  {
+    left = parse_level(0, tokenizer);
+
+    token = tokenizer.next_token();
+    assert(token.type == Token::RPAREN);
+  } break;
+  case Token::MINUS:
+    left = -parse_level(255, tokenizer);
+    break;
+  case Token::NEGATION:
+    left = !parse_level(255, tokenizer);
+    break;
+  case Token::INTEGER:
+    left = token.to_integer();
+    break;
+  default:
+    assert(false);
+  }
+
+  token = tokenizer.next_token();
+
+  for (int32_t upper = token.prec_level(); upper >= level; upper--)
+  {
+    if (token.prec_level() == upper && token.is_right_assoc())
+    {
+      left = apply(token.type, left, parse_level(upper, tokenizer));
+      token = tokenizer.next_token();
+    }
+
+    while (token.prec_level() == upper)
+    {
+      left = apply(token.type, left, parse_level(upper + 1, tokenizer));
+      token = tokenizer.next_token();
+    }
+  }
+
+  tokenizer.putback_token(token);
+
+  return left;
+}
+
 int32_t parse_expr(const char *expr)
 {
   Tokenizer tokenizer = { expr, { }, 0 };
