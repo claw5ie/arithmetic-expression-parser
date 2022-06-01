@@ -59,13 +59,7 @@ struct Token
       return 5;
     case POWER:
       return 6;
-    case NEGATION:
-    case LPAREN:
-    case RPAREN:
-    case INTEGER:
-      return 7;
     default:
-      // Nothing to see here.
       ;
     }
 
