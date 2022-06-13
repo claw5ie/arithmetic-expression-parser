@@ -1,4 +1,5 @@
 #include <iostream>
+#include <limits>
 #include <cstdint>
 #include <cassert>
 #include <cmath>
@@ -329,21 +330,34 @@ int32_t parse_level_loop(int32_t level, Tokenizer &tokenizer)
 
   token = tokenizer.next_token();
 
-  for (int32_t upper = token.precedence(); upper >= level; upper--)
+  int32_t prev_level = std::numeric_limits<int32_t>::max();
+  int32_t curr_level = token.precedence();
+
+  while (curr_level >= level && curr_level < prev_level)
   {
-    if (token.precedence() == upper && token.is_right_assoc())
+    if (token.is_right_assoc())
     {
-      left = apply(token.type, left, parse_level(upper, tokenizer));
+      left = apply(
+        token.type, left, parse_level(curr_level, tokenizer)
+        );
       token = tokenizer.next_token();
     }
-
-    while (token.precedence() == upper)
+    else
     {
-      left = apply(token.type, left, parse_level(upper + 1, tokenizer));
-      token = tokenizer.next_token();
+      // This else shouldn't be necessary, since all tokens of
+      // precedence "curr_level" will be consumed by right
+      // associative operator from the branch above.
+      while (token.precedence() == curr_level)
+      {
+        left = apply(
+          token.type, left, parse_level(curr_level + 1, tokenizer)
+          );
+        token = tokenizer.next_token();
+      }
     }
 
-    upper = std::min(token.precedence() + 1, upper);
+    prev_level = curr_level;
+    curr_level = token.precedence();
   }
 
   tokenizer.putback_token(token);
