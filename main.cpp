@@ -1,34 +1,27 @@
 #include <iostream>
+#include <cstring>
+#include <cmath>
 #include <limits>
 #include <cstdint>
 #include <cassert>
-#include <cmath>
+
+#define LOWEST_PREC (-254)
+#define HIGHEST_PREC (255)
 
 struct Token
 {
   enum Type
   {
-    OR,
-    AND,
-    EQUAL,
-    DIFFERENT,
-    LESS,
-    LESS_EQUAL,
-    GREATER,
-    GREATER_EQUAL,
-    PLUS,
-    MINUS,
-    MULT,
-    DIVIDE,
-    MOD,
-    POWER,
-    NEGATION,
-    LPAREN,
-    RPAREN,
-    INTEGER,
+    Plus,
+    Minus,
+    Mult,
+    Pow,
 
-    UNKNOWN_TOKEN,
-    END_OF_FILE
+    Integer,
+    Open_Paren,
+    Closed_Paren,
+
+    End_Of_File
   };
 
   Type type;
@@ -39,42 +32,27 @@ struct Token
   {
     switch (type)
     {
-    case OR:
-      return 0;
-    case AND:
+    case Token::Plus:
       return 1;
-    case EQUAL:
-    case DIFFERENT:
+    case Token::Minus:
+      return 1;
+    case Token::Mult:
       return 2;
-    case LESS:
-    case LESS_EQUAL:
-    case GREATER:
-    case GREATER_EQUAL:
+    case Token::Pow:
       return 3;
-    case PLUS:
-    case MINUS:
-      return 4;
-    case MULT:
-    case DIVIDE:
-    case MOD:
-      return 5;
-    case POWER:
-      return 6;
     default:
-      ;
+      return LOWEST_PREC - 1;
     }
-
-    return -255;
   }
 
-  bool is_right_assoc() const
+  int32_t is_right_assoc() const
   {
-    return type == POWER;
+    return type == Pow;
   }
 
   int32_t to_integer() const
   {
-    assert(type == INTEGER);
+    assert(type == Integer);
 
     int32_t value = 0;
 
@@ -111,102 +89,49 @@ struct Tokenizer
 private:
   Token next_token_aux()
   {
+    static struct
+    {
+      const char *const string;
+      uint32_t size;
+      Token::Type const type;
+    } const tokens[] = {
+      { "+", 1, Token::Plus },
+      { "-", 1, Token::Minus },
+      { "*", 1, Token::Mult },
+      { "^", 1, Token::Pow },
+      { "(", 1, Token::Open_Paren },
+      { ")", 1, Token::Closed_Paren }
+    };
+
     while (std::isspace(*at))
       at++;
 
     const char *const begin = at;
 
-    at += (*at != '\0');
-
-    switch (begin[0])
+    if (*at == '\0')
     {
-    case '|':
-      if (*at == '|')
-      {
-        at++;
-        return { Token::OR, begin, 1 };
-      }
-      break;
-    case '&':
-      if (*at == '&')
-      {
-        at++;
-        return { Token::AND, begin, 1 };
-      }
-      break;
-    case '=':
-      if (*at == '=')
-      {
-        at++;
-        return { Token::EQUAL, begin, 1 };
-      }
-      break;
-    case '!':
-      if (*at == '=')
-      {
-        at++;
-        return { Token::DIFFERENT, begin, 1 };
-      }
-      else
-      {
-        return { Token::NEGATION, begin, 1};
-      }
-      break;
-    case '<':
-      if (*at == '=')
-      {
-        at++;
-        return { Token::LESS_EQUAL, begin, 1 };
-      }
-      else
-      {
-        return { Token::LESS, begin, 1 };
-      }
-      break;
-    case '>':
-      if (*at == '=')
-      {
-        at++;
-        return { Token::GREATER_EQUAL, begin, 1 };
-      }
-      else
-      {
-        return { Token::GREATER, begin, 1 };
-      }
-      break;
-    case '^':
-      return { Token::POWER, begin, 1 };
-    case '+':
-      return { Token::PLUS, begin, 1 };
-    case '-':
-      return { Token::MINUS, begin, 1 };
-    case '*':
-      return { Token::MULT, begin, 1 };
-    case '/':
-      return { Token::DIVIDE, begin, 1 };
-    case '%':
-      return { Token::MOD, begin, 1 };
-    case '(':
-      return { Token::LPAREN, begin, 1 };
-    case ')':
-      return { Token::RPAREN, begin, 1 };
-    case '\0':
-      return { Token::END_OF_FILE, begin, 1 };
-    default:
-      // Nothing to see here.
-      ;
+      return { Token::End_Of_File, begin, 0 };
     }
-
-    if (std::isdigit(begin[0]))
+    else if (std::isdigit(*at))
     {
-      while (std::isdigit(*at))
-        at++;
+      while (std::isdigit(*++at))
+        ;
 
-      return { Token::INTEGER, begin, size_t(at - begin) };
+      return { Token::Integer, begin, size_t(at - begin) };
     }
     else
     {
-      return { Token::UNKNOWN_TOKEN, begin, 1 };
+      for (size_t i = 0; i < sizeof (tokens) / sizeof (*tokens); i++)
+      {
+        auto &token = tokens[i];
+        if (!std::strncmp(token.string, at, token.size))
+        {
+          at += token.size;
+          return { token.type, begin, token.size };
+        }
+      }
+
+      assert(false && "ERROR: invalid token.\n");
     }
   }
 };
@@ -215,123 +140,47 @@ int32_t apply(Token::Type type, int32_t left, int32_t right)
 {
   switch (type)
   {
-  case Token::OR:
-    return left || right;
-  case Token::AND:
-    return left && right;
-  case Token::EQUAL:
-    return left == right;
-  case Token::DIFFERENT:
-    return left != right;
-  case Token::LESS:
-    return left < right;
-  case Token::LESS_EQUAL:
-    return left <= right;
-  case Token::GREATER:
-    return left > right;
-  case Token::GREATER_EQUAL:
-    return left >= right;
-  case Token::PLUS:
+  case Token::Plus:
     return left + right;
-  case Token::MINUS:
+  case Token::Minus:
     return left - right;
-  case Token::MULT:
+  case Token::Mult:
     return left * right;
-  case Token::DIVIDE:
-    return left / right;
-  case Token::MOD:
-    return left % right;
-  case Token::POWER:
+  case Token::Pow:
     return std::pow(left, right);
   default:
-    // Hello there!
-    ;
+    std::cerr << "ERROR: invalid type: " << type << '\n';
+    std::exit(EXIT_FAILURE);
   }
-
-  assert(false);
-
-  return -1;
 }
 
 int32_t parse_level(int32_t level, Tokenizer &tokenizer)
 {
-  if (level < 7)
-  {
-    int32_t left = parse_level(level + 1, tokenizer);
-    Token token = tokenizer.next_token();
-
-    if (token.precedence() == level && token.is_right_assoc())
-      return apply(token.type, left, parse_level(level, tokenizer));
-
-    while (token.precedence() == level)
-    {
-      left = apply(token.type, left, parse_level(level + 1, tokenizer));
-      token = tokenizer.next_token();
-    }
-
-    tokenizer.putback_token(token);
-
-    return left;
-  }
-  else
-  {
-    Token token = tokenizer.next_token();
-
-    switch (token.type)
-    {
-    case Token::LPAREN:
-    {
-      int32_t left = parse_level(0, tokenizer);
-
-      token = tokenizer.next_token();
-      assert(token.type == Token::RPAREN);
-
-      return left;
-    }
-    case Token::MINUS:
-      return -parse_level(255, tokenizer);
-    case Token::NEGATION:
-      return !parse_level(255, tokenizer);
-    case Token::INTEGER:
-      return token.to_integer();
-    default:
-      assert(false);
-    }
-  }
-}
-
-// "precedence" should return the smallest number when token is not operator.
-int32_t parse_level_loop(int32_t level, Tokenizer &tokenizer)
-{
-  int32_t left;
   Token token = tokenizer.next_token();
+  int32_t left;
 
   switch (token.type)
   {
-  case Token::LPAREN:
+  case Token::Open_Paren:
   {
-    left = parse_level(0, tokenizer);
+    left = parse_level(LOWEST_PREC, tokenizer);
 
     token = tokenizer.next_token();
-    assert(token.type == Token::RPAREN);
+    assert(token.type == Token::Closed_Paren);
   } break;
-  case Token::MINUS:
-    left = -parse_level(255, tokenizer);
-    break;
-  case Token::NEGATION:
-    left = !parse_level(255, tokenizer);
-    break;
-  case Token::INTEGER:
+  case Token::Integer:
     left = token.to_integer();
     break;
+  case Token::Minus:
+    left = -parse_level(HIGHEST_PREC, tokenizer);
+    break;
   default:
-    assert(false);
+    assert(false && "failed to read expression.");
   }
 
   token = tokenizer.next_token();
-
-  int32_t prev_level = std::numeric_limits<int32_t>::max();
   int32_t curr_level = token.precedence();
+  int32_t prev_level = std::numeric_limits<int32_t>::max();
 
   while (curr_level >= level && curr_level < prev_level)
   {
@@ -367,40 +216,19 @@ int32_t parse_level_loop(int32_t level, Tokenizer &tokenizer)
 
 void parse_expr(const char *expr)
 {
-  Tokenizer tokenizer;
+  Tokenizer tokenizer = { expr, { }, 0 };
 
+  std::cout << "Result: "
+            << parse_level(0, tokenizer)
+            << '\n';
+
+  Token token = tokenizer.next_token();
+
+  if (token.type != Token::End_Of_File)
   {
-    tokenizer = { expr, { }, 0 };
-
-    std::cout << "rec: "
-              << parse_level(0, tokenizer)
-              << '\n';
-
-    Token token = tokenizer.next_token();
-
-    if (token.type != Token::END_OF_FILE)
-    {
-      std::cout << "rec: failed to parse expression at `"
-                << token.begin
-                << "`.\n";
-    }
-  }
-
-  {
-    tokenizer = { expr, { }, 0 };
-
-    std::cout << "it:  "
-              << parse_level_loop(0, tokenizer)
-              << '\n';
-
-    Token token = tokenizer.next_token();
-
-    if (token.type != Token::END_OF_FILE)
-    {
-      std::cout << "it:  failed to parse expression at `"
-                << token.begin
-                << "`.\n";
-    }
+    std::cout << "Failed to parse expression at `"
+              << token.begin
+              << "`.\n";
   }
 }
 
