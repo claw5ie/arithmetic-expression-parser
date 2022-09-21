@@ -118,14 +118,15 @@ parse_prec(int prec_limit)
   char op = *at;
   int prev_prec = INT_MAX, curr_prec = prec_of_token(op);
 
-  // If "op" is not an operator, it should have smaller precedence than
-  // the lowest precedence of an operator. In that way, current
-  // precedence will always be smaller than the precedence limit and
-  // this loop will be skipped.
+  // If "op" is not an operator, it must have smaller precedence than
+  // the lowest possible precedence of any operator.
+  // In that way, current precedence will always be smaller than
+  // the precedence limit and the left-hand side will be returned
+  // (this loop won't run).
   while (curr_prec >= prec_limit && curr_prec < prev_prec)
     {
-      // When entering one of the conditions, it is guaranteed
-      // (or atleast should be) that precedence of the current
+      // When entering one of the conditions, it is guaranteed -
+      // - or, atleast, should be - that precedence of the current
       // token (which should be an operator) is the same as
       // "curr_prec", so no need to check it.
       if (is_token_right_assoc(op))
