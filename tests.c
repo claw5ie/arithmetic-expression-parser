@@ -28,13 +28,9 @@ assert_equals(Test test)
 {
   printf("* Running test...");
 
-  at = test.expr;
-  int actual = parse_expr();
+  int actual = srd_parse_expr(test.expr);
 
-  ptrdiff_t expected_length = strlen(test.expr);
-  ptrdiff_t actual_length = at - test.expr;
-
-  if (actual == test.expected && expected_length == actual_length)
+  if (actual == test.expected)
     puts(" Ok.");
   else
     {
@@ -46,9 +42,9 @@ assert_equals(Test test)
              actual,
              test.expr);
 
-      actual_length += 17;
+      size_t spaces_to_insert = strlen(test.expr) + 17;
 
-      while (actual_length-- > 0)
+      while (spaces_to_insert-- > 0)
         putchar(' ');
 
       puts("^");

@@ -70,7 +70,7 @@ apply(char op, int left, int right)
 }
 
 int
-parse_expr();
+parse_top_level();
 
 int
 parse_prec(int prec_limit);
@@ -85,7 +85,7 @@ parse_base()
     case '(':
       {
         ++at;
-        int val = parse_expr();
+        int val = parse_top_level();
         assert(*at == ')');
         ++at;
 
@@ -154,7 +154,17 @@ parse_prec(int prec_limit)
 }
 
 int
-parse_expr()
+parse_top_level()
 {
   return parse_prec(LOWEST_PREC);
+}
+
+int
+srd_parse_expr(const char *str)
+{
+  at = str;
+  int res = parse_top_level();
+  assert(*at == '\0' && "couldn't parse entire expression");
+
+  return res;
 }
