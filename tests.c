@@ -1,4 +1,4 @@
-#include "parser.c"
+#include "srdparser.c"
 
 #include <string.h>
 #include <stddef.h>
