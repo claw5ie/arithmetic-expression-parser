@@ -1,7 +1,5 @@
-#include "srdparser.c"
-
+#include <stdio.h>
 #include <string.h>
-#include <stddef.h>
 
 typedef struct
 {
@@ -24,11 +22,11 @@ Test tests[]
       {       -90, "2+2*2-2^3*3*(2+2)" } };
 
 void
-assert_equals(Test test)
+assert_equals(int (*parse_expr)(const char *), Test test)
 {
   printf("* Running test...");
 
-  int actual = srd_parse_expr(test.expr);
+  int actual = parse_expr(test.expr);
 
   if (actual == test.expected)
     puts(" Ok.");
@@ -52,8 +50,20 @@ assert_equals(Test test)
 }
 
 int
+srd_parse_expr(const char *str);
+
+int
+rd_parse_expr(const char *str);
+
+int
 main(void)
 {
   for (size_t i = 0; i < sizeof(tests) / sizeof(*tests); i++)
-    assert_equals(tests[i]);
+    assert_equals(srd_parse_expr, tests[i]);
+
+  putchar('\n');
+  putchar('\n');
+
+  for (size_t i = 0; i < sizeof(tests) / sizeof(*tests); i++)
+    assert_equals(rd_parse_expr, tests[i]);
 }

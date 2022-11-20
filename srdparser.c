@@ -4,27 +4,10 @@
 #include <limits.h>
 #include <assert.h>
 
-int
-powi(int x, int e)
-{
-  if (e < 0)
-    return 0;
-  else if (e == 0)
-    return 1;
-
-  int res = powi(x, e / 2);
-
-  res *= res;
-
-  if (e % 2 == 0)
-    return res;
-  else
-    return x * res;
-}
-
 #define LOWEST_PREC (-127)
 #define HIGHEST_PREC (127)
 
+static
 int
 prec_of_token(char op)
 {
@@ -43,12 +26,17 @@ prec_of_token(char op)
     }
 }
 
+static
 bool
 is_token_right_assoc(char ch)
 {
   return ch == '^';
 }
 
+int
+powi(int base, int exponent);
+
+static
 int
 apply(char op, int left, int right)
 {
@@ -69,14 +57,17 @@ apply(char op, int left, int right)
     }
 }
 
+static
 int
 parse_top_level();
 
+static
 int
 parse_prec(int prec_limit);
 
 static const char *at;
 
+static
 int
 parse_base()
 {
@@ -110,6 +101,7 @@ parse_base()
     }
 }
 
+static
 int
 parse_prec(int prec_limit)
 {
@@ -153,6 +145,7 @@ parse_prec(int prec_limit)
   return left;
 }
 
+static
 int
 parse_top_level()
 {
